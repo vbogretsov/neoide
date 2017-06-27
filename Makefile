@@ -1,9 +1,10 @@
 CC				= 	clang
 LD 				= 	clang
+GOPATH			=	$(shell pwd)
 
 WARNINGS		=	-Werror
 
-CCFLAGS			=	-std=c11 $(WARNINGS) -c -Ineoided/clangide
+CCFLAGS			=	-std=c11 $(WARNINGS) -c -Isrc/neoided/clangide
 LDFLAGS			=	-dynamiclib
 
 ifeq ($(OS),Windows_NT)
@@ -28,20 +29,19 @@ CCFLAGS += $(CLANG_HEADERS)
 
 LDFLAGS += $(STD_LIBS)
 
-SRC = neoided/clangide
+SRC = src/neoided/clangide
 OBJ = obj
 BIN = bin
 
 SRC_FILES := $(wildcard $(SRC)/*.c)
 OBJ_FILES := $(addprefix $(OBJ)/,$(notdir $(SRC_FILES:.c=.o)))
 
-GOSRC = neoided
-
+GOSRC = src/neoided
 
 default: $(LIBNAME)
 	cp $(BIN)/$(LIBNAME) ./$(GOSRC)/
-	cd $(GOSRC) && go build && cd ..
-	mv $(GOSRC)/$(GOSRC) $(BIN)/
+	cd $(GOSRC) && go build
+	mv $(GOSRC)/neoided $(BIN)/
 	@echo done
 
 
