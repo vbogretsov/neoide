@@ -55,15 +55,16 @@ typedef CXCodeCompleteResults* (*clang_complete_at_t)(
     CXTranslationUnit, const char*, unsigned, unsigned, struct CXUnsavedFile*,
     unsigned, unsigned);
 
-CXCodeCompleteResults* complete(
+CXCodeCompleteResults* clang_complete_at(
     clang_complete_at_t fn, CXTranslationUnit tu,
-    const char* complete_filename, unsigned complete_line,
-    unsigned complete_column, struct CXUnsavedFile* unsaved_files,
-    unsigned num_unsaved_files, unsigned options)
+    const char* filename, const char* content, unsigned content_size,
+    unsigned line, unsigned column, unsigned options)
 {
+    struct CXUnsavedFile unsaved_file =
+        {.Filename = filename, .Contents = content, .Length = content_size};
     return (*fn)(
-        tu, complete_filename, complete_line, complete_column, unsaved_files,
-        num_unsaved_files, options);
+        tu, filename, line, column, (struct CXUnsavedFile[]){unsaved_file},
+        1, options);
 }
 
 typedef void (*clang_dispose_completion_t)(CXCodeCompleteResults*);
@@ -91,9 +92,9 @@ void clang_dispose_string(clang_dispose_string_t fn, CXString str)
 typedef unsigned (*clang_get_num_completion_chunks_t)(CXCompletionString);
 
 unsigned clang_get_num_completion_chunks(
-    clang_get_num_completion_chunks_t fn, CXCompletionString str)
+    clang_get_num_completion_chunks_t fn, CXCompletionString* str)
 {
-    return (*fn)(str);
+    return (*fn)(*str);
 }
 
 typedef CXString (*clang_get_completion_chunk_text_t)(
@@ -121,6 +122,7 @@ import "C"
 import (
     "errors"
     "fmt"
+    "io/ioutil"
     "os"
     "unsafe"
 )
@@ -129,12 +131,17 @@ const (
     IMPORT_ERROR = "unable to import %s"
 )
 
+type CXCompletionResultPtr *C.CXCompletionResult
+
 type Clang struct {
-    libHandle    unsafe.Pointer
-    createIndex  C.clang_create_index_t
-    disposeIndex C.clang_dispose_index_t
-    parseTu      C.clang_parse_tu_t
-    disposeTu    C.clang_dispose_tu_t
+    libHandle               unsafe.Pointer
+    createIndex             C.clang_create_index_t
+    disposeIndex            C.clang_dispose_index_t
+    parseTu                 C.clang_parse_tu_t
+    disposeTu               C.clang_dispose_tu_t
+    complete                C.clang_complete_at_t
+    disposeCompletion       C.clang_dispose_completion_t
+    getNumCompletionChunks  C.clang_get_num_completion_chunks_t
 }
 
 func ImportError(fname string) error {
@@ -216,7 +223,9 @@ func New(path string) (*Clang, error) {
 
     clang := &Clang{
         libHandle: handle, createIndex: createIndex,
-        disposeIndex: disposeIndex, parseTu: parseTu, disposeTu: disposeTu}
+        disposeIndex: disposeIndex, parseTu: parseTu, disposeTu: disposeTu,
+        complete: complete, disposeCompletion: disposeCompletion,
+        getNumCompletionChunks: getNumCompletionChunks}
     return clang, nil
 }
 
@@ -241,8 +250,28 @@ func (clang *Clang) DisposeTu(tu C.CXTranslationUnit) {
     C.clang_dispose_tu(clang.disposeTu, tu)
 }
 
-func Start(libclang_path string, source_path string, line int, column int) {
-    clang, err := New(libclang_path)
+func (clang *Clang) Complete(
+    tu C.CXTranslationUnit, filename string, content string,
+    line int, column int) *C.CXCodeCompleteResults {
+    return C.clang_complete_at(
+        clang.complete, tu, C.CString(filename), C.CString(content),
+        C.uint(len(content)), C.uint(line), C.uint(column), C.uint(0))
+}
+
+func (clang *Clang) DisposeCompletion(completions *C.CXCodeCompleteResults) {
+    C.clang_dispose_completion(clang.disposeCompletion, completions)
+}
+
+func (clang *Clang) GetNumCompletionChunks(
+    completion *C.CXCompletionString) int {
+    result := C.clang_get_num_completion_chunks(
+        clang.getNumCompletionChunks, completion)
+    fmt.Println("GetNumCompletionChunks:", result)
+    return int(result)
+}
+
+func Start(libclangPath string, sourcePath string, line int, column int) {
+    clang, err := New(libclangPath)
 
     if err != nil {
         fmt.Println(err)
@@ -252,14 +281,35 @@ func Start(libclang_path string, source_path string, line int, column int) {
     index := clang.CreateIndex(1, 1)
     defer clang.DisposeIndex(index)
 
-    tu := clang.ParseTu(index, source_path)
+    tu := clang.ParseTu(index, sourcePath)
     defer clang.DisposeTu(tu)
 
     if tu == nil {
         fmt.Println("parse failed")
+        os.Exit(1)
     }
 
     fmt.Println("loaded:", clang)
     fmt.Println("index: ", index)
     fmt.Println("tu:    ", tu)
+
+    content, err := ioutil.ReadFile(sourcePath)
+    if err != nil {
+        fmt.Println(err)
+        os.Exit(1)
+    }
+
+    completions := clang.Complete(
+        tu, sourcePath, string(content), line, column)
+    defer clang.DisposeCompletion(completions)
+
+    fmt.Println("total completions:", completions.NumResults)
+
+    results := (*[1 << 30]C.CXCompletionResult)(
+        unsafe.Pointer(&completions.Results))
+    for i := 0; i < int(completions.NumResults); i++ {
+        // cstr := &results[i].CompletionString
+        // clang.GetNumCompletionChunks(cstr)
+        fmt.Println("chunks:", results[i])
+    }
 }

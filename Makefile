@@ -1,49 +1,27 @@
-CC				= 	clang
-LD 				= 	clang
-GOPATH			=	$(shell pwd)
-
+STD				=	-std=c11
 WARNINGS		=	-Werror
 
-CCFLAGS			=	-std=c11 $(WARNINGS) -c -Isrc/neoided/clangide
+CCFLAGS			=	$(STD) $(WARNINGS) -c
 LDFLAGS			=	-dynamiclib
 
-ifeq ($(OS),Windows_NT)
-	VS_ROOT			=	"c:\Program Files (x86)\Microsoft Visual Studio 14.0"
-	WIN_SDK_ROOT	=	"c:\Program Files (x86)\Windows Kits\10"
-	WIN_SDK_VERSION	=	10.0.14393.0
+SRC				=	./src/neoided
+OBJ				=	obj
+BIN				=	bin
 
-	STD_HEADERS		=	-I$(VS_ROOT)\VC\include \
-						-I$(WIN_SDK_ROOT)\Include\$(WIN_SDK_VERSION)\ucrt \
-						-I$(WIN_SDK_ROOT)\Include\$(WIN_SDK_VERSION)\um \
-						-I$(WIN_SDK_ROOT)\Include\$(WIN_SDK_VERSION)\shared
-	STD_LIBS		=	-L$(WIN_SDK_ROOT)\Lib\$(WIN_SDK_VERSION)\ucrt\x64 \
-						-L$(WIN_SDK_ROOT)\Lib\$(WIN_SDK_VERSION)\um\x64 \
-						-L$(VS_ROOT)\VC\lib\amd64
-	LIBNAME			=	libclangide.dll
-else
-	LIBNAME			=	libclangide.dylib
-endif
+NEOIDE			=	neoided
 
-CCFLAGS += $(STD_HEADERS)
-CCFLAGS += $(CLANG_HEADERS)
+LIBCLANG_SRC		=	$(SRC)/libclang/
+LIBCLANG_INTEROP	=	$(LIBCLANG_SRC)/interop
+LIBCLANG_CCFLAGS	=	-I$(LIBCLANG_INTEROP)
 
-LDFLAGS += $(STD_LIBS)
+LIBCLANG_SRC_FILES := $(wildcard $(LIBCLANG_INTEROP)/*.c)
+LIBCLANG_OBJ_FILES := $(addprefix $(OBJ)/,$(notdir $(LIBCLANG_SRC_FILES:.c=.o)))
+LIBCLANG_BIN = libclanginterop.dylib
 
-SRC = src/neoided/clangide
-OBJ = obj
-BIN = bin
+GOLIBCLANG_SRC := $(wildcard $(LIBCLANG_SRC)/*.go)
 
-SRC_FILES := $(wildcard $(SRC)/*.c)
-OBJ_FILES := $(addprefix $(OBJ)/,$(notdir $(SRC_FILES:.c=.o)))
-
-GOSRC = src/neoided
-
-default: $(LIBNAME)
-	cp $(BIN)/$(LIBNAME) ./$(GOSRC)/
-	cd $(GOSRC) && go build
-	mv $(GOSRC)/neoided $(BIN)/
+default: $(BIN)/$(NEOIDE)
 	@echo done
-
 
 clean:
 	@echo cleaning...
@@ -54,9 +32,12 @@ $(OBJ):
 	mkdir $(OBJ)
 	mkdir $(BIN)
 
+$(OBJ)/%.o: $(LIBCLANG_INTEROP)/%.c $(OBJ)
+	$(CC) $(CCFLAGS) $(LIBCLANG_CCFLAGS) $< -o $@
 
-$(OBJ)/%.o: $(SRC)/%.c $(OBJ)
-	$(CC) $(CCFLAGS) -c $< -o $@
+$(BIN)/$(LIBCLANG_BIN): $(LIBCLANG_OBJ_FILES)
+	$(CC) $(LDFLAGS) -o $@ $^
 
-$(LIBNAME): $(OBJ_FILES)
-	$(LD) $(LDFLAGS) -o $(BIN)/$@ $^
+
+$(BIN)/$(NEOIDE): $(GOLIBCLANG_SRC) $(BIN)/$(LIBCLANG_BIN)
+	go build -o $(BIN)/$(NEOIDE) $(SRC)

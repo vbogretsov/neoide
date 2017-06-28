@@ -4,6 +4,8 @@ import (
     "fmt"
     "os"
     "strconv"
+
+    "./libclang"
 )
 
 
@@ -22,5 +24,5 @@ func main() {
         fmt.Println("column should be an integer")
         os.Exit(1)
     }
-    Start(os.Args[1], os.Args[2], line, column)
+    libclang.Start(os.Args[1], os.Args[2], line, column)
 }
