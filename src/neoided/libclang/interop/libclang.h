@@ -11,6 +11,7 @@
 typedef struct libclang libclang_t;
 typedef CXIndex index_t;
 typedef CXTranslationUnit translation_unit_t;
+typedef CXCodeCompleteResults completion_results_t;
 
 #define ABBR_SIZE 128
 #define WORD_SIZE 128
@@ -21,7 +22,7 @@ typedef struct
     char word[WORD_SIZE];
     char kind;
     unsigned priority;
-} libclang_completion_t;
+} completion_t;
 
 /**
  * Get the error message.
@@ -101,14 +102,29 @@ void libclang_dispose_tu(libclang_t* so, translation_unit_t tu);
  * @param  file_size    Size of file for which to search completions.
  * @param  line         Line number where to search completions.
  * @param  column       Column number where to search completions.
- * @param  allocator    Allocator for completions collection.
- * @param  inserter     Inserter for completions collection.
- * @return              Completions collection allocated by allocator.
+ * @return              Completions results.
  */
-void* libclang_complete_at(
+completion_results_t* libclang_complete_at(
     libclang_t* so, translation_unit_t tu, unsigned options,
     const char* file_path, const char* file_content, unsigned file_size,
-    unsigned line, unsigned column, void* (*allocator)(unsigned),
-    void (*inserter)(libclang_completion_t*, unsigned, void*));
+    unsigned line, unsigned column);
+
+/**
+ * Free completion results.
+ * @param  so     Library handle.
+ * @param results Results to be deallocated.
+ */
+void libclang_completions_free(libclang_t* so, completion_results_t* results);
+
+/**
+ * Iterate over completion results.
+ * @param  so     Library handle.
+ * @param results Completion results.
+ * @param ctx     Closure context.
+ * @param action  Acition to apply for each completion result.
+ */
+void libclang_completions_foreach(
+    libclang_t* so, completion_results_t* results, void* ctx,
+    void(*action)(completion_t*, unsigned, void*));
 
 #endif // !LIBCLANG_H

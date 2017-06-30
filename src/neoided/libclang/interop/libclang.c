@@ -92,7 +92,7 @@ struct libclang
 };
 
 typedef void (*complete_chunk_t)(
-    libclang_completion_t*, unsigned*, unsigned*, const char*);
+    completion_t*, unsigned*, unsigned*, const char*);
 
 const char* libclang_error()
 {
@@ -148,10 +148,8 @@ libclang_t* libclang_load(const char* path)
 
 void libclang_free(libclang_t* so)
 {
-    if (so->handle)
-    {
-        close_library(so->handle);
-    }
+    close_library(so->handle);
+    free(so);
 }
 
 index_t libclang_create_index(
@@ -196,7 +194,7 @@ static void buffcpy(char buff[], unsigned* pos, unsigned size, const char* str)
 }
 
 static void complete_typed_text(
-    libclang_completion_t* completion,
+    completion_t* completion,
     unsigned* abrr_i,
     unsigned* word_i,
     const char* part)
@@ -206,7 +204,7 @@ static void complete_typed_text(
 }
 
 static void complete_text(
-    libclang_completion_t* completion,
+    completion_t* completion,
     unsigned* abrr_i,
     unsigned* word_i,
     const char* part)
@@ -216,7 +214,7 @@ static void complete_text(
 }
 
 static void complete_placeholder(
-    libclang_completion_t* completion,
+    completion_t* completion,
     unsigned* abrr_i,
     unsigned* word_i,
     const char* part)
@@ -228,7 +226,7 @@ static void complete_placeholder(
 }
 
 static void complete_result_type(
-    libclang_completion_t* completion,
+    completion_t* completion,
     unsigned* abrr_i,
     unsigned* word_i,
     const char* part)
@@ -238,7 +236,7 @@ static void complete_result_type(
 }
 
 static void complete_symbol(
-    libclang_completion_t* completion,
+    completion_t* completion,
     unsigned* abrr_i,
     unsigned* word_i,
     const char* part)
@@ -248,7 +246,7 @@ static void complete_symbol(
 }
 
 static void skipp_completion(
-    libclang_completion_t* completion,
+    completion_t* completion,
     unsigned* abrr_i,
     unsigned* word_i,
     const char* part)
@@ -370,18 +368,19 @@ static complete_chunk_t completer(enum CXCompletionChunkKind kind)
     }
 }
 
-static void insert_completion(
-    libclang_t* so, CXCompletionResult* result, unsigned i, void* completions,
-    void (*inserter)(libclang_completion_t*, unsigned, void*))
+static void visit_completion(
+    libclang_t* so, CXCompletionResult* result, unsigned i, void* ctx,
+    void(*action)(completion_t*, unsigned, void*))
 {
-    libclang_completion_t completion;
+    completion_t completion;
     completion.abbr[0] = '\0';
     completion.word[0] = '\0';
     unsigned abbr_i = 0;
     unsigned word_i = 0;
 
     completion.kind = kind_char(result->CursorKind);
-    buffcpy(completion.abbr, &abbr_i, ABBR_SIZE, kind_name(result->CursorKind));
+    buffcpy(
+        completion.abbr, &abbr_i, ABBR_SIZE, kind_name(result->CursorKind));
     CXCompletionString comp_string = result->CompletionString;
     unsigned num_chunks = so->get_num_completion_chunks(comp_string);
 
@@ -396,40 +395,33 @@ static void insert_completion(
         so->dispose_string(chunk_text);
     }
 
-    (*inserter)(&completion, i, completions);
+    (*action)(&completion, i, ctx);
 }
 
-void* libclang_complete_at(
+completion_results_t* libclang_complete_at(
     libclang_t* so, translation_unit_t tu, unsigned options,
     const char* file_path, const char* file_content, unsigned file_size,
-    unsigned line, unsigned column, void* (*allocator)(unsigned),
-    void (*inserter)(libclang_completion_t*, unsigned, void*))
+    unsigned line, unsigned column)
 {
     struct CXUnsavedFile unsaved_file =
         {.Filename = file_path, .Contents = file_content, .Length = file_size};
 
-    CXCodeCompleteResults* results = so->complete_at(
+    return so->complete_at(
         tu, file_path, line, column,
         (struct CXUnsavedFile[]){unsaved_file}, 1, options);
-
-    if (!results)
-    {
-        return NULL;
-    }
-
-    void* completions = (*allocator)(results->NumResults);
-
-    if (!completions)
-    {
-        return NULL;
-    }
-
-    for (unsigned i = 0; i < results->NumResults; ++i)
-    {
-        insert_completion(
-            so, &(results->Results[i]), i, completions, inserter);
-    }
-
-    return completions;
 }
 
+void libclang_completions_free(libclang_t* so, completion_results_t* results)
+{
+    so->dispose_completion(results);
+}
+
+void libclang_completions_foreach(
+    libclang_t* so, completion_results_t* results, void* ctx,
+    void(*action)(completion_t*, unsigned, void*))
+{
+    for (unsigned i = 0; i < results->NumResults; ++i)
+    {
+        visit_completion(so, &(results->Results[i]), i, ctx, action);
+    }
+}

@@ -40,4 +40,5 @@ $(BIN)/$(LIBCLANG_BIN): $(LIBCLANG_OBJ_FILES)
 
 
 $(BIN)/$(NEOIDE): $(GOLIBCLANG_SRC) $(BIN)/$(LIBCLANG_BIN)
+	# cp $(BIN)/$(LIBCLANG_BIN) ./
 	go build -o $(BIN)/$(NEOIDE) $(SRC)
