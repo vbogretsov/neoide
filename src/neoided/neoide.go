@@ -5,7 +5,7 @@ import (
     "os"
     "strconv"
 
-    "./libclang"
+    "./clangide"
 )
 
 
@@ -24,5 +24,5 @@ func main() {
         fmt.Println("column should be an integer")
         os.Exit(1)
     }
-    libclang.Start(os.Args[1], os.Args[2], line, column)
+    clangide.Start(os.Args[1], os.Args[2], line, column)
 }

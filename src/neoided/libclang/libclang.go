@@ -1,8 +1,14 @@
+/**
+ * Simplified Go bindings for clang C API.
+ *
+ * Jun 30 2017 Vladimir Bogretsov <bogrecov@gmail.com>
+ */
 package libclang
 
 /*
 #cgo CFLAGS: -Iinterop
 #cgo LDFLAGS: -L${SRCDIR} -L${SRCDIR}/../../../bin -lclanginterop
+#include <stdlib.h>
 #include <libclang.h>
 
 extern void ReadCompletion(completion_t*, unsigned, void*);
@@ -12,21 +18,42 @@ static void copy_completions(
 {
     libclang_completions_foreach(so, completions, ctx, &ReadCompletion);
 }
+
+static char** make_char_array(unsigned size) {
+    return malloc(sizeof(char*) * size);
+}
+
+static void free_char_array(char** array, unsigned size) {
+    for (unsigned i = 0; i < size; ++i) {
+        free(array[i]);
+    }
+    free(array);
+}
 */
 import "C"
 
 import (
     "errors"
-    "io/ioutil"
     "fmt"
-    "os"
     "unsafe"
 )
 
-const ParseOptions =
-    C.CXTranslationUnit_PrecompiledPreamble |
-    C.CXTranslationUnit_CacheCompletionResults |
-    C.CXTranslationUnit_Incomplete
+const (
+    TUPrecompiledPreamble = C.CXTranslationUnit_PrecompiledPreamble
+    TUCacheCompletionResults = C.CXTranslationUnit_CacheCompletionResults
+    TUIncomplete = C.CXTranslationUnit_Incomplete
+)
+
+const (
+    CCIncludeMacros = C.CXCodeComplete_IncludeMacros
+    CCIncludeBriefComments = C.CXCodeComplete_IncludeBriefComments
+    CCIncludeCodePatterns = C.CXCodeComplete_IncludeCodePatterns
+)
+
+type CStrings struct {
+    array **C.char
+    size  C.uint
+}
 
 //export ReadCompletion
 func ReadCompletion(
@@ -39,99 +66,96 @@ func ReadCompletion(
         "word": C.GoString(&completion.word[0])}
 }
 
-func Load(sopath string) (*C.libclang_t, error) {
-    clang := C.libclang_load(C.CString(sopath))
-    if clang == nil {
-        return nil, errors.New(C.GoString(C.libclang_error()))
+func ToCStrings(array []string) *CStrings {
+    result := C.make_char_array(C.uint(len(array)))
+    ptr := (*[1 << 30]*C.char)(unsafe.Pointer(result))
+
+    for i := 0; i < len(array); i++ {
+        ptr[i] = C.CString(array[i])
     }
-    return clang, nil
+
+    return &CStrings{result, C.uint(len(array))}
 }
 
-func (clang *C.libclang_t) Close() {
-    if clang != nil {
-        C.libclang_free(clang)
+func (strings *CStrings) Free() {
+    C.free_char_array(strings.array, strings.size)
+}
+
+func ClangError() string {
+    return C.GoString(C.libclang_error())
+}
+
+type Clang struct {
+    handle *C.libclang_t
+}
+
+type Index struct {
+    handle C.index_t
+}
+
+type TranslationUnit struct {
+    handle C.translation_unit_t
+}
+
+func Load(sopath string) (*Clang, error) {
+    handle := C.libclang_load(C.CString(sopath))
+    if handle == nil {
+        return nil, errors.New(fmt.Sprintf(
+            "unable to load libclang: %s", C.GoString(C.libclang_error())))
     }
+    return &Clang{handle: handle}, nil
 }
 
-func (clang *C.libclang_t) CreateIndex(
-    excludeDeclarationsFromPCH int, displayDiagnostics int) C.index_t {
-
-    index := C.libclang_create_index(
-        clang, C.int(excludeDeclarationsFromPCH), C.int(displayDiagnostics))
-    return index
+func (clang *Clang) Close() {
+    C.libclang_free(clang.handle)
 }
 
-func (clang *C.libclang_t) CloseIndex(index C.index_t) {
-    C.libclang_dispose_index(clang, index)
+func (clang *Clang) CreateIndex(
+    excludeDeclarationsFromPCH int, displayDiagnostics int) *Index {
+
+    handle := C.libclang_create_index(
+        clang.handle, C.int(excludeDeclarationsFromPCH),
+        C.int(displayDiagnostics))
+    return &Index{handle: handle}
+}
+
+func (clang *Clang) CloseIndex(index *Index) {
+    C.libclang_dispose_index(clang.handle, index.handle)
 }
 
 // TODO: add errors handling
 // TODO: pass flags
-func (clang *C.libclang_t) ParseTu(
-    index C.index_t, filename string,
-    flags **C.char, num_flags int, options int) C.translation_unit_t {
+func (clang *Clang) ParseTu(
+    index *Index, filename string,
+    flags *CStrings, options int) *TranslationUnit {
 
-    tu := C.libclang_parse_tu(
-        clang, index, C.CString(filename), flags,
-        C.uint(num_flags), C.uint(options))
-    return tu
+    handle := C.libclang_parse_tu(
+        clang.handle, index.handle, C.CString(filename),
+        flags.array, flags.size, C.uint(options))
+    return &TranslationUnit{handle: handle}
 }
 
-func (clang *C.libclang_t) CloseTu(tu C.translation_unit_t) {
-    C.libclang_dispose_tu(clang, tu)
+func (clang *Clang) ReparseTu(tu *TranslationUnit, options int) {
+    C.libclang_reparse_tu(clang.handle, tu.handle, C.uint(options))
+}
+
+func (clang *Clang) CloseTu(tu *TranslationUnit) {
+    C.libclang_dispose_tu(clang.handle, tu.handle)
 }
 
 // TODO: add error handling
-func (clang *C.libclang_t) Complete(
-    tu C.translation_unit_t, options int, filename string,
-    content string, line int, column int) *[]map[string]string {
+func (clang *Clang) Complete(
+    tu *TranslationUnit, options int, content string, filename string,
+    line int, column int) *[]map[string]string {
 
     results := C.libclang_complete_at(
-        clang, tu, C.uint(options), C.CString(filename), C.CString(content),
-        C.uint(len(content)), C.uint(line), C.uint(column))
-    defer C.libclang_completions_free(clang, results)
+        clang.handle, tu.handle, C.uint(options), C.CString(filename),
+        C.CString(content), C.uint(len(content)), C.uint(line), C.uint(column))
+    defer C.libclang_completions_free(clang.handle, results)
 
     completions := make([]map[string]string, results.NumResults)
     ctx := unsafe.Pointer(&completions[0])
-    C.copy_completions(clang, results, ctx)
+    C.copy_completions(clang.handle, results, ctx)
 
     return &completions
-}
-
-func Start(libclangPath string, sourcePath string, line int, column int) {
-    clang, err := Load(libclangPath)
-    defer clang.Close()
-
-    if clang == nil {
-        fmt.Println(C.GoString(C.libclang_error()))
-        os.Exit(1)
-    }
-
-    index := clang.CreateIndex(1, 1)
-    defer clang.CloseIndex(index)
-
-    tu := clang.ParseTu(index, sourcePath, nil, 0, ParseOptions)
-    defer clang.CloseTu(tu)
-
-    if tu == nil {
-        fmt.Println("parse failed")
-        os.Exit(1)
-    }
-
-    file, err := ioutil.ReadFile(sourcePath)
-    if err != nil {
-        fmt.Println(err)
-        os.Exit(1)
-    }
-    content := string(file)
-
-    completions := clang.Complete(tu, 0, sourcePath, content, line, column)
-
-    fmt.Println("total:", len(*completions))
-
-    for _, completion := range (*completions) {
-        fmt.Println(completion)
-    }
-
-    fmt.Println("done")
 }

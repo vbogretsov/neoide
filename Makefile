@@ -11,6 +11,7 @@ BIN				=	bin
 NEOIDE			=	neoided
 
 LIBCLANG_SRC		=	$(SRC)/libclang/
+CLANGIDE_SRC		=	$(SRC)/clangide/
 LIBCLANG_INTEROP	=	$(LIBCLANG_SRC)/interop
 LIBCLANG_CCFLAGS	=	-I$(LIBCLANG_INTEROP)
 
@@ -19,6 +20,8 @@ LIBCLANG_OBJ_FILES := $(addprefix $(OBJ)/,$(notdir $(LIBCLANG_SRC_FILES:.c=.o)))
 LIBCLANG_BIN = libclanginterop.dylib
 
 GOLIBCLANG_SRC := $(wildcard $(LIBCLANG_SRC)/*.go)
+GOCLANGIDE_SRC := $(wildcard $(CLANGIDE_SRC)/*.go)
+GOSRC = $(GOLIBCLANG_SRC) $(GOCLANGIDE_SRC)
 
 default: $(BIN)/$(NEOIDE)
 	@echo done
@@ -39,6 +42,5 @@ $(BIN)/$(LIBCLANG_BIN): $(LIBCLANG_OBJ_FILES)
 	$(CC) $(LDFLAGS) -o $@ $^
 
 
-$(BIN)/$(NEOIDE): $(GOLIBCLANG_SRC) $(BIN)/$(LIBCLANG_BIN)
-	# cp $(BIN)/$(LIBCLANG_BIN) ./
+$(BIN)/$(NEOIDE): $(GOSRC) $(BIN)/$(LIBCLANG_BIN)
 	go build -o $(BIN)/$(NEOIDE) $(SRC)
