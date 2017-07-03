@@ -94,6 +94,17 @@ struct libclang
 typedef void (*complete_chunk_t)(
     completion_t*, unsigned*, unsigned*, const char*);
 
+char** make_string_array(unsigned size) {
+    return malloc(sizeof(char*) * size);
+}
+
+void free_string_array(char** array, unsigned size) {
+    for (unsigned i = 0; i < size; ++i) {
+        free(array[i]);
+    }
+    free(array);
+}
+
 const char* libclang_error()
 {
     return errno < 0 ? ERROR : strerror(errno);

@@ -1,2 +1,8 @@
 0.0.1:
-  ☐ Implement completions getting
+  ✔ Implement completions getting. @done (17-07-02 12:35)
+  ☐ Avoid path depdendent imports.
+  ☐ Implement neoide frontend.
+  ✔ Static link libclanginterop. @done (17-07-03 11:56)
+  ✔ Relative path of neoided. @done (17-07-03 12:45)
+  ☐ VimL: make functions and variables script local (where it's possible).
+  ☐ VimL: change function name to lower case.

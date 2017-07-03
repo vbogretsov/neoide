@@ -6,8 +6,6 @@
 package libclang
 
 /*
-#cgo CFLAGS: -Iinterop
-#cgo LDFLAGS: -L${SRCDIR} -L${SRCDIR}/../../../bin -lclanginterop
 #include <stdlib.h>
 #include <libclang.h>
 
@@ -17,17 +15,6 @@ static void copy_completions(
     libclang_t* so, completion_results_t* completions, void* ctx)
 {
     libclang_completions_foreach(so, completions, ctx, &ReadCompletion);
-}
-
-static char** make_char_array(unsigned size) {
-    return malloc(sizeof(char*) * size);
-}
-
-static void free_char_array(char** array, unsigned size) {
-    for (unsigned i = 0; i < size; ++i) {
-        free(array[i]);
-    }
-    free(array);
 }
 */
 import "C"
@@ -67,7 +54,7 @@ func ReadCompletion(
 }
 
 func ToCStrings(array []string) *CStrings {
-    result := C.make_char_array(C.uint(len(array)))
+    result := C.make_string_array(C.uint(len(array)))
     ptr := (*[1 << 30]*C.char)(unsafe.Pointer(result))
 
     for i := 0; i < len(array); i++ {
@@ -78,7 +65,7 @@ func ToCStrings(array []string) *CStrings {
 }
 
 func (strings *CStrings) Free() {
-    C.free_char_array(strings.array, strings.size)
+    C.free_string_array(strings.array, strings.size)
 }
 
 func ClangError() string {
@@ -124,7 +111,6 @@ func (clang *Clang) CloseIndex(index *Index) {
 }
 
 // TODO: add errors handling
-// TODO: pass flags
 func (clang *Clang) ParseTu(
     index *Index, filename string,
     flags *CStrings, options int) *TranslationUnit {

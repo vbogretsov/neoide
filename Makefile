@@ -1,46 +1,21 @@
-STD				=	-std=c11
-WARNINGS		=	-Werror
+SRC = src
+BIN = bin
+EXE = $(BIN)/neoided
 
-CCFLAGS			=	$(STD) $(WARNINGS) -c
-LDFLAGS			=	-dynamiclib
+SRC_LIBCLANG := $(wildcard $(SRC)/libclang/*.go)
+SRC_CLANGIDE := $(wildcard $(SRC)/clangide/*.go)
+SRC_MAIN     := $(wildcard $(SRC)/*.go)
 
-SRC				=	./src/neoided
-OBJ				=	obj
-BIN				=	bin
+SOURCES = $(SRC_LIBCLANG) $(SRC_CLANGIDE) $(SRC_MAIN)
 
-NEOIDE			=	neoided
-
-LIBCLANG_SRC		=	$(SRC)/libclang/
-CLANGIDE_SRC		=	$(SRC)/clangide/
-LIBCLANG_INTEROP	=	$(LIBCLANG_SRC)/interop
-LIBCLANG_CCFLAGS	=	-I$(LIBCLANG_INTEROP)
-
-LIBCLANG_SRC_FILES := $(wildcard $(LIBCLANG_INTEROP)/*.c)
-LIBCLANG_OBJ_FILES := $(addprefix $(OBJ)/,$(notdir $(LIBCLANG_SRC_FILES:.c=.o)))
-LIBCLANG_BIN = libclanginterop.dylib
-
-GOLIBCLANG_SRC := $(wildcard $(LIBCLANG_SRC)/*.go)
-GOCLANGIDE_SRC := $(wildcard $(CLANGIDE_SRC)/*.go)
-GOSRC = $(GOLIBCLANG_SRC) $(GOCLANGIDE_SRC)
-
-default: $(BIN)/$(NEOIDE)
+default: $(EXE)
 	@echo done
 
 clean:
-	@echo cleaning...
-	rm -rf $(OBJ)
 	rm -rf $(BIN)
 
-$(OBJ):
-	mkdir $(OBJ)
-	mkdir $(BIN)
+$(BIN):
+	mkdir -p $(BIN)
 
-$(OBJ)/%.o: $(LIBCLANG_INTEROP)/%.c $(OBJ)
-	$(CC) $(CCFLAGS) $(LIBCLANG_CCFLAGS) $< -o $@
-
-$(BIN)/$(LIBCLANG_BIN): $(LIBCLANG_OBJ_FILES)
-	$(CC) $(LDFLAGS) -o $@ $^
-
-
-$(BIN)/$(NEOIDE): $(GOSRC) $(BIN)/$(LIBCLANG_BIN)
-	go build -o $(BIN)/$(NEOIDE) $(SRC)
+$(EXE): $(SOURCES) $(BIN)
+	go build -o $(EXE) ./$(SRC)

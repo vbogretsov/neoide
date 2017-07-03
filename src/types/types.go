@@ -5,6 +5,9 @@
  */
 package types
 
+/**
+ * Represents location in a file.
+ */
 type Location struct {
     Path   string
     Line   int

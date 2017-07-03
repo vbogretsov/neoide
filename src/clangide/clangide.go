@@ -6,11 +6,6 @@
 package clangide
 
 import (
-    "io/ioutil"
-    "fmt"
-    "os"
-
-    // TODO: avoid path dependent imports
     "../types"
     "../libclang"
 )
@@ -51,7 +46,7 @@ func (ide *Ide) Close() {
     ide.clang.Close()
 }
 
-func (ide *Ide) OpenFile(path string, action func()) {
+func (ide *Ide) Enter(path string, action func()) {
     if old, ok := ide.units[path]; ok {
         ide.clang.CloseTu(old)
     }
@@ -61,21 +56,26 @@ func (ide *Ide) OpenFile(path string, action func()) {
     action()
 }
 
-func (ide *Ide) SaveFile(path string, action func()) {
+func (ide *Ide) Save(path string, action func()) {
     if tu, ok := ide.units[path]; ok {
         ide.clang.ReparseTu(tu, ParseOptions)
         action()
     }
 }
 
-func (ide *Ide) CloseFile(path string, action func()) {
+func (ide *Ide) Leave(path string, action func()) {
     if tu, ok := ide.units[path]; ok {
         ide.clang.CloseTu(tu)
         action()
     }
 }
 
-func (ide *Ide) FindCompletions(
+func (ide *Ide) CanComplete(line string) int {
+    // NotImplemented
+    return 4
+}
+
+func (ide *Ide) GetCompletions(
     content string, location *types.Location) *[]map[string]string {
 
     var completions *[]map[string]string = nil
@@ -111,35 +111,4 @@ func (ide *Ide) FindAssingments(
     content string, location *types.Location) *[]types.Location {
 
     return nil
-}
-
-func Start(libclangPath string, sourcePath string, line int, column int) {
-    flags := []string{"-I/usr/include", "-I~/ports/include"}
-
-    ide, err := New(libclangPath, flags)
-
-    if err == nil {
-        defer ide.Close()
-    } else {
-        fmt.Println(err)
-        os.Exit(1)
-    }
-
-    ide.OpenFile(sourcePath, func(){})
-
-    file, err := ioutil.ReadFile(sourcePath)
-
-    if err != nil {
-        fmt.Println(err)
-        os.Exit(1)
-    }
-
-    completions := ide.FindCompletions(
-        string(file), &types.Location{sourcePath, line, column})
-
-    for _, completion := range (*completions) {
-        fmt.Println(completion)
-    }
-
-    fmt.Println("done")
 }

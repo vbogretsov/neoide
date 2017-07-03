@@ -6,7 +6,7 @@
 #ifndef LIBCLANG_H
 #define LIBCLANG_H
 
-#include <clang-c/Index.h>
+#include "clang-c/Index.h"
 
 typedef struct libclang libclang_t;
 typedef CXIndex index_t;
@@ -23,6 +23,20 @@ typedef struct
     char kind;
     unsigned priority;
 } completion_t;
+
+/**
+ * Create uninitialized char array.
+ * @param  size Array size.
+ * @return      Pointer to array allocated.
+ */
+char** make_string_array(unsigned size);
+
+/**
+ * Free strings array.
+ * @param array Array to be deallocated.
+ * @param size  Array size.
+ */
+void free_string_array(char** array, unsigned size);
 
 /**
  * Get the error message.
