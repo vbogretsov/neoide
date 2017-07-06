@@ -6,8 +6,18 @@
 package clangide
 
 import (
-    "../types"
+    "regexp"
+    "github.com/neovim/go-client/nvim"
+
     "../libclang"
+    "../types"
+)
+
+var (
+    // Trigger = regexp.MustCompile(`([\w\d_]+(\:\:|\.|->)$)|[<>\+\-\*/=|&!~\(\[),]$`)
+    // NewWord = regexp.MustCompile(`(\s|^)[\w_]$`)
+    Trigger = regexp.MustCompile(`([\w_]+(\:\:|\.|->)$)`)
+    NewWord = regexp.MustCompile(`[^\w_\.][[:alpha:]_]$`)
 )
 
 const ParseOptions =
@@ -15,7 +25,33 @@ const ParseOptions =
     libclang.TUCacheCompletionResults |
     libclang.TUIncomplete
 
-const CompleteOptions = libclang.CCIncludeMacros
+const CompleteOptions =
+    libclang.CCIncludeMacros | libclang.CCIncludeCodePatterns
+
+func createIde(vim *nvim.Nvim, vimflags string) (types.Plugin, error) {
+    batch := vim.NewBatch()
+
+    var libclang_path string
+    var flags []string
+
+    batch.Call("eval", &libclang_path, "g:neoide_clang_libclang")
+    batch.Call("eval", &flags, vimflags)
+    err := batch.Execute()
+
+    if err != nil {
+        return nil, err
+    }
+
+    return New(libclang_path, flags)
+}
+
+func CreateCIde(vim *nvim.Nvim) (types.Plugin, error) {
+    return createIde(vim, "g:neoide_c_flags")
+}
+
+func CreateCppIde(vim *nvim.Nvim) (types.Plugin, error) {
+    return createIde(vim, "g:neoide_cpp_flags")
+}
 
 type Ide struct {
     clang *libclang.Clang
@@ -71,8 +107,15 @@ func (ide *Ide) Leave(path string, action func()) {
 }
 
 func (ide *Ide) CanComplete(line string) int {
-    // NotImplemented
-    return 4
+    triggerMatch := Trigger.FindStringIndex(line)
+    if triggerMatch != nil {
+        return triggerMatch[1] + 1
+    }
+    newWordMatch := NewWord.FindStringIndex(line)
+    if newWordMatch != nil {
+        return newWordMatch[1]
+    }
+    return 0
 }
 
 func (ide *Ide) GetCompletions(
@@ -92,23 +135,27 @@ func (ide *Ide) GetCompletions(
 func (ide *Ide) FindDefenition(
     content string, location *types.Location) *[]types.Location {
 
+    // NotImplemented
     return nil
 }
 
 func (ide *Ide) FindDeclaration(
     content string, location *types.Location) *[]types.Location {
 
+    // NotImplemented
     return nil
 }
 
 func (ide *Ide) FindReferences(
     content string, location *types.Location) *[]types.Location {
 
+    // NotImplemented
     return nil
 }
 
 func (ide *Ide) FindAssingments(
     content string, location *types.Location) *[]types.Location {
 
+    // NotImplemented
     return nil
 }

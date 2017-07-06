@@ -50,7 +50,8 @@ func ReadCompletion(
     completions := (*[1 << 30]map[string]string)(ctx)
     completions[i] = map[string]string{
         "abbr": C.GoString(&completion.abbr[0]),
-        "word": C.GoString(&completion.word[0])}
+        "word": C.GoString(&completion.word[0]),
+        "menu": "[clang]"}
 }
 
 func ToCStrings(array []string) *CStrings {
