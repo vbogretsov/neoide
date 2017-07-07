@@ -5,6 +5,12 @@
  */
 package types
 
+import "log"
+
+var (
+    LOG *log.Logger
+)
+
 /**
  * Represents location in a file.
  */

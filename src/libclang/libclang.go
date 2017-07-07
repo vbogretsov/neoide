@@ -140,6 +140,10 @@ func (clang *Clang) Complete(
         C.CString(content), C.uint(len(content)), C.uint(line), C.uint(column))
     defer C.libclang_completions_free(clang.handle, results)
 
+    if results == nil || results.NumResults == 0 {
+        return &[]map[string]string{}
+    }
+
     completions := make([]map[string]string, results.NumResults)
     ctx := unsafe.Pointer(&completions[0])
     C.copy_completions(clang.handle, results, ctx)

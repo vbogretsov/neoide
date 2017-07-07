@@ -2,7 +2,7 @@ package main
 
 import (
     "errors"
-    "log"
+    "math/rand"
     "strings"
 
     "github.com/neovim/go-client/nvim"
@@ -10,14 +10,11 @@ import (
     "./types"
 )
 
-var (
-    LOG   *log.Logger
-)
-
 type Neoide struct {
-    funcs       map[string]func(*nvim.Nvim)(types.Plugin, error)
-    plugs       map[string]types.Plugin
-    completions *[]map[string]string
+    funcs         map[string]func(*nvim.Nvim)(types.Plugin, error)
+    plugs         map[string]types.Plugin
+    completions   *[]map[string]string
+    completion_id int
 }
 
 func New(funcs map[string]func(*nvim.Nvim)(types.Plugin, error)) *Neoide {
@@ -116,8 +113,7 @@ func GatherCompletions(
         text := strings.Join(content, "\n")
         completions = plug.GetCompletions(text, location)
     } else {
-        empty := make([]map[string]string, 0)
-        completions = &empty
+        completions = &[]map[string]string{}
         vim.Call("neoide#error", nil, err)
     }
 
@@ -127,28 +123,23 @@ func GatherCompletions(
 func (ide *Neoide) GetCompletions(
     vim *nvim.Nvim, args []interface{}) (*[]map[string]string, error) {
 
+    if ide.completions == nil {
+        return &[]map[string]string{}, nil
+    }
+
     word, ok := args[0].(string)
     if !ok {
         word = ""
     }
     word = strings.TrimSpace(word)
 
-    LOG.Println("getting completion for word'",word,"'")
-
     if word == "" {
         return ide.completions, nil
     }
 
-    LOG.Println("filter completion for word'",word,"'")
+    result := Filter(ide.completions, word)
 
-    result := []map[string]string{}
-    for _, value := range *ide.completions {
-        if strings.HasPrefix(value["word"], word) {
-            result = append(result, value)
-        }
-    }
-
-    return &result, nil
+    return result, nil
 }
 
 func (ide *Neoide) ShowCompletions(vim *nvim.Nvim, args []interface{}) {
@@ -167,7 +158,6 @@ func (ide *Neoide) ShowCompletions(vim *nvim.Nvim, args []interface{}) {
     if plug, ok := ide.plugs[filetype]; ok {
         ide.completions = GatherCompletions(vim, int(column), plug)
         vim.Call("neoide#show_popup", nil, column - 1)
-        LOG.Println("got", len(*ide.completions), "completions")
     }
 }
 
@@ -185,8 +175,6 @@ func (ide *Neoide) FindCompletions(vim *nvim.Nvim, args []interface{}) {
         return
     }
 
-    LOG.Println("requested completions for line", line)
-
     plug, ok := ide.plugs[filetype]
     if !ok {
         return
@@ -195,15 +183,13 @@ func (ide *Neoide) FindCompletions(vim *nvim.Nvim, args []interface{}) {
     column := plug.CanComplete(line)
 
     if column > 0 {
-        LOG.Println("getting completions for line", line)
-
+        completion_id := rand.Int()
+        ide.completion_id = completion_id
         ide.completions = GatherCompletions(vim, column, plug)
-        if ide.completions == nil {
-            LOG.Println("got NULL")
-        } else {
-            LOG.Println("got", len(*ide.completions), "completions")
+
+        if completion_id == ide.completion_id {
+            vim.Call("neoide#show_popup", nil, column - 1)
         }
-        vim.Call("neoide#show_popup", nil, column - 1)
     }
 }
 

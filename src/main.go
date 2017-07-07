@@ -7,6 +7,7 @@ import (
     "github.com/neovim/go-client/nvim/plugin"
 
     "./plugins"
+    "./types"
 )
 
 func openLogFile(path string) *os.File {
@@ -22,8 +23,8 @@ func main() {
     file := openLogFile("/tmp/neoide.log")
     defer file.Close()
 
-    LOG = log.New(file, "", log.LstdFlags | log.Lshortfile)
-    LOG.Println("neoide started")
+    types.LOG = log.New(file, "", log.LstdFlags | log.Lshortfile)
+    types.LOG.Println("neoide started")
 
     neoide := New(plugins.PLUGINS)
 
