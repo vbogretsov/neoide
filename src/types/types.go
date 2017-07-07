@@ -30,11 +30,17 @@ type FileController interface {
     Leave(path string, action func())
 }
 
+/**
+ * Code completer interface.
+ */
 type Completer interface {
     CanComplete(line string) int
     Complete(content string, location *Location) *[]map[string]string
 }
 
+/**
+ * Code navigator interface.
+ */
 type Navigator interface {
     FindDefenition(content string, location *Location) *[]Location
     FindDeclaration(content string, location *Location) *[]Location
@@ -42,18 +48,28 @@ type Navigator interface {
     FindAssingments(content string, location *Location) *[]Location
 }
 
+/**
+ * Represents violation level.
+ * @type {int}
+ */
 const (
     Error   = iota
     Warning = iota
 )
 
+/**
+ * Represents code linter violation.
+ */
 type Violation struct {
     Message string
     Level   int
 }
 
-type Analyzer interface {
-    Analyze(path string) *[]Violation
+/**
+ * Code linter interface.
+ */
+type Linter interface {
+    Lint(path string) *[]Violation
 }
 
 type Plugin interface {
