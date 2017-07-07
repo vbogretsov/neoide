@@ -7,10 +7,9 @@ package clangide
 
 import (
     "regexp"
+    "github.com/vbogretsov/neoide/src/libclang"
     "github.com/vbogretsov/neoide/src/types"
     "github.com/neovim/go-client/nvim"
-
-    "../libclang"
 )
 
 var (

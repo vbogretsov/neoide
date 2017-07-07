@@ -14,8 +14,14 @@ default: $(EXE)
 clean:
 	rm -rf $(BIN)
 
+dependencies:
+	go get "github.com/neovim/go-client/nvim"
+	go get "github.com/neovim/go-client/nvim/plugin"
+	go get "github.com/vbogretsov/neoide/src/libclang"
+	go get "github.com/vbogretsov/neoide/src/types"
+
 $(BIN):
 	mkdir -p $(BIN)
 
-$(EXE): $(SOURCES) $(BIN)
+$(EXE): $(SOURCES) $(BIN) dependencies
 	go build -o $(EXE) ./$(SRC)

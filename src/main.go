@@ -5,8 +5,9 @@ import (
     "os"
     "github.com/vbogretsov/neoide/src/types"
     "github.com/neovim/go-client/nvim/plugin"
+    "github.com/neovim/go-client/nvim"
 
-    "./plugins"
+    "./clangide"
 )
 
 func openLogFile(path string) *os.File {
@@ -18,6 +19,12 @@ func openLogFile(path string) *os.File {
     return file
 }
 
+func loadPlugins() map[string]func(*nvim.Nvim)(types.Plugin, error) {
+    plugins := map[string]func(*nvim.Nvim)(types.Plugin, error) {
+        "c": clangide.CreateCIde, "cpp": clangide.CreateCppIde}
+    return plugins
+}
+
 func main() {
     file := openLogFile("/tmp/neoide.log")
     defer file.Close()
@@ -25,7 +32,7 @@ func main() {
     types.LOG = log.New(file, "", log.LstdFlags | log.Lshortfile)
     types.LOG.Println("neoide started")
 
-    neoide := New(plugins.PLUGINS)
+    neoide := New(loadPlugins())
 
     plugin.Main(func(p *plugin.Plugin) error {
         p.HandleFunction(
