@@ -10,3 +10,10 @@
     ✔ neoide_clang_libclang @done (17-07-06 11:40)
     ✔ neoide_clang_c_flags @done (17-07-06 11:40)
     ✔ neoide_clang_cpp_flags @done (17-07-06 11:40)
+  ☐ Don't trigger completions if list is empty.
+  ☐ Improve completions filtering: mind case between matched chars.
+  ☐ Reference the package types as remote packge.
+  ☐ Redesign components.
+
+0.0.2:
+  ☐ Include code patterns.

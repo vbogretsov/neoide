@@ -118,7 +118,7 @@ func (ide *Ide) CanComplete(line string) int {
     return 0
 }
 
-func (ide *Ide) GetCompletions(
+func (ide *Ide) Complete(
     content string, location *types.Location) *[]map[string]string {
 
     var completions *[]map[string]string = nil

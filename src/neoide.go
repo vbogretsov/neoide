@@ -111,7 +111,7 @@ func GatherCompletions(
     if err == nil {
         location := &types.Location{path, line, column}
         text := strings.Join(content, "\n")
-        completions = plug.GetCompletions(text, location)
+        completions = plug.Complete(text, location)
     } else {
         completions = &[]map[string]string{}
         vim.Call("neoide#error", nil, err)
@@ -183,6 +183,7 @@ func (ide *Neoide) FindCompletions(vim *nvim.Nvim, args []interface{}) {
     column := plug.CanComplete(line)
 
     if column > 0 {
+        types.LOG.Printf("getting completions at %d for line %s\n", column, line)
         completion_id := rand.Int()
         ide.completion_id = completion_id
         ide.completions = GatherCompletions(vim, column, plug)

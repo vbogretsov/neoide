@@ -30,21 +30,35 @@ type FileController interface {
     Leave(path string, action func())
 }
 
-type CodeCompleter interface {
+type Completer interface {
     CanComplete(line string) int
-    GetCompletions(content string, location *Location) *[]map[string]string
+    Complete(content string, location *Location) *[]map[string]string
 }
 
-type CodeNavigator interface {
+type Navigator interface {
     FindDefenition(content string, location *Location) *[]Location
     FindDeclaration(content string, location *Location) *[]Location
     FindReferences(content string, location *Location) *[]Location
     FindAssingments(content string, location *Location) *[]Location
 }
 
+const (
+    Error   = iota
+    Warning = iota
+)
+
+type Violation struct {
+    Message string
+    Level   int
+}
+
+type Analyzer interface {
+    Analyze(path string) *[]Violation
+}
+
 type Plugin interface {
     Closable
     FileController
-    CodeCompleter
-    CodeNavigator
+    Completer
+    Navigator
 }
