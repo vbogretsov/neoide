@@ -3,11 +3,10 @@ package main
 import (
     "log"
     "os"
-
+    "github.com/vbogretsov/neoide/src/types"
     "github.com/neovim/go-client/nvim/plugin"
 
     "./plugins"
-    "./types"
 )
 
 func openLogFile(path string) *os.File {

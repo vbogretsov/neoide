@@ -7,15 +7,13 @@ package clangide
 
 import (
     "regexp"
+    "github.com/vbogretsov/neoide/src/types"
     "github.com/neovim/go-client/nvim"
 
     "../libclang"
-    "../types"
 )
 
 var (
-    // Trigger = regexp.MustCompile(`([\w\d_]+(\:\:|\.|->)$)|[<>\+\-\*/=|&!~\(\[),]$`)
-    // NewWord = regexp.MustCompile(`(\s|^)[\w_]$`)
     Trigger = regexp.MustCompile(`([\w_]+(\:\:|\.|->)$)`)
     NewWord = regexp.MustCompile(`[^\w_\.][[:alpha:]_]$`)
 )

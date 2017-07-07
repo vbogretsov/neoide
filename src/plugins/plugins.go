@@ -6,9 +6,9 @@
 package plugins
 
 import (
+    "github.com/vbogretsov/neoide/src/types"
     "github.com/neovim/go-client/nvim"
 
-    "../types"
     "../clangide"
 )
 
